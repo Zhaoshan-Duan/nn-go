@@ -4,7 +4,7 @@
 
 | Component                | Implemented | Unit Tested | Notes                |
 |--------------------------|:-----------:|:-----------:|----------------------|
-| Activation Functions     | [ ]         | [ ]         |                      |
+| Activation Functions     | [x]         | [x]         |                      |
 | Layer Struct             | [ ]         | [ ]         |                      |
 | Layer Forward Pass       | [ ]         | [ ]         |                      |
 | Network Struct (MLP)     | [ ]         | [ ]         |                      |
@@ -18,8 +18,8 @@
 ### Details & Notes
 
 - **Activation Functions:**
-  - [ ] Implement ReLU, Sigmoid, Tanh, Linear
-  - [ ] Write unit tests for each
+  - [x] Implement ReLU, Sigmoid, Tanh, Linear
+  - [x] Write unit tests for each
 
 - **Layer Struct:**
   - [ ] Define weights, biases, activation

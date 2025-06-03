@@ -1,0 +1,17 @@
+mode: set
+neural-network-project/activation/functions.go:12.42,13.11 1 1
+neural-network-project/activation/functions.go:13.11,15.3 1 1
+neural-network-project/activation/functions.go:16.2,16.10 1 1
+neural-network-project/activation/functions.go:19.31,21.2 1 1
+neural-network-project/activation/functions.go:25.45,27.2 1 1
+neural-network-project/activation/functions.go:29.34,31.2 1 1
+neural-network-project/activation/functions.go:35.44,37.2 1 1
+neural-network-project/activation/functions.go:39.33,41.2 1 1
+neural-network-project/activation/functions.go:45.42,47.2 1 1
+neural-network-project/activation/functions.go:49.31,51.2 1 1
+neural-network-project/activation/functions.go:53.48,54.14 1 1
+neural-network-project/activation/functions.go:55.14,56.16 1 1
+neural-network-project/activation/functions.go:57.17,58.19 1 1
+neural-network-project/activation/functions.go:59.16,60.18 1 1
+neural-network-project/activation/functions.go:61.14,62.16 1 1
+neural-network-project/activation/functions.go:63.10,64.18 1 1
