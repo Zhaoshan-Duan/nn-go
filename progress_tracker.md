@@ -5,7 +5,7 @@
 | Component                | Implemented | Unit Tested | Notes                |
 |--------------------------|:-----------:|:-----------:|----------------------|
 | Activation Functions     | [x]         | [x]         |                      |
-| Layer Struct             | [ ]         | [ ]         |                      |
+| Layer Struct             | [x]         | [x]         |                      |
 | Layer Forward Pass       | [ ]         | [ ]         |                      |
 | Network Struct (MLP)     | [ ]         | [ ]         |                      |
 | Forward Propagation      | [ ]         | [ ]         |                      |
@@ -22,8 +22,9 @@
   - [x] Write unit tests for each
 
 - **Layer Struct:**
-  - [ ] Define weights, biases, activation
-  - [ ] Test initialization and forward
+  - [x] Define weights, biases, activation
+  - [ ] Test initialization
+  - [ ] Test Forward Propagation
 
 - *(Add more details as you go)*
 
