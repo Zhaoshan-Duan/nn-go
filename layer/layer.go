@@ -1,8 +1,10 @@
 package layer
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"neural-network-project/activation"
+	"neural-network-project/mathutil"
 )
 
 // Layer represents a fully-connected layer in the network
@@ -49,4 +51,24 @@ func initBiases(outputSize int) []float64 {
 	}
 
 	return biases
+}
+
+func (l *Layer) Forward(input []float64) []float64 {
+	if len(input) != len(l.Weights[0]) {
+		panic(fmt.Sprintf("Dimension Mismatch in Forward(): input length is %d, weight length is %d.", len(input), len(l.Weights)))
+	}
+	return l.forwardProp(input)
+}
+
+func (l *Layer) forwardProp(x []float64) []float64 {
+	outputSize := len(l.Weights)
+	outputs := make([]float64, outputSize)
+
+	for i := range l.Weights {
+		w_i := l.Weights[i]
+		preActivation := mathutil.DotProduct(w_i, x) + l.Biases[i]
+		z := l.Activation.Forward(preActivation)
+		outputs[i] = z
+	}
+	return outputs
 }

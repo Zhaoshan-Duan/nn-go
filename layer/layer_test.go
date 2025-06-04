@@ -56,3 +56,42 @@ func TestLayerWeightsBiasRange(t *testing.T) {
 		}
 	}
 }
+
+func TestLayerForwardPass(t *testing.T) {
+	testCases := []struct {
+		inputSize  int
+		outputSize int
+		activation string
+		input      []float64
+	}{
+		{3, 2, "relu", []float64{1.0, 2.0, 3.0}},
+		{4, 4, "sigmoid", []float64{0.5, -1.2, 3.3, 0.0}},
+		{2, 5, "tanh", []float64{2.2, -0.7}},
+		{1, 1, "linear", []float64{42.0}},
+	}
+
+	for _, testCase := range testCases {
+		act := activation.NewActivation(testCase.activation)
+		layer := NewLayer(testCase.inputSize, testCase.outputSize, act)
+
+		output := layer.Forward(testCase.input)
+
+		if len(output) != testCase.outputSize {
+			t.Errorf("expected output size %d, got %d", testCase.outputSize, len(output))
+		}
+	}
+}
+
+func TestLayerForwardKnownValues(t *testing.T) {
+	layer := NewLayer(3, 1, activation.NewActivation("linear"))
+	layer.Weights[0] = []float64{1.0, 2.0, 3.0}
+	layer.Biases[0] = 4.0
+
+	input := []float64{1.0, 1.0, 1.0}
+	output := layer.Forward(input)
+	expected := float64(1*1 + 2*1 + 3*1 + 4)
+
+	if len(output) != 1 || output[0] != expected {
+		t.Errorf("expected output [10], got %v", output)
+	}
+}

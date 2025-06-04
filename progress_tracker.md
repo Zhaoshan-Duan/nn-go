@@ -4,9 +4,9 @@
 
 | Component                | Implemented | Unit Tested | Notes                |
 |--------------------------|:-----------:|:-----------:|----------------------|
-| Activation Functions     | [x]         | [x]         |                      |
-| Layer Struct             | [x]         | [x]         |                      |
-| Layer Forward Pass       | [ ]         | [ ]         |                      |
+| Activation Functions     | [x]         | [x]         |ReLU, Sigmoid, Tanh, Linear; value tests|
+| Layer Struct             | [x]         | [x]         |Init, shape, activation, value ranges|
+| Layer Forward Pass       | [x]         | [x]         |Output shape, activations, input checks|
 | Network Struct (MLP)     | [ ]         | [ ]         |                      |
 | Forward Propagation      | [ ]         | [ ]         |                      |
 | Backward Propagation     | [ ]         | [ ]         |                      |
@@ -23,8 +23,8 @@
 
 - **Layer Struct:**
   - [x] Define weights, biases, activation
-  - [ ] Test initialization
-  - [ ] Test Forward Propagation
+  - [x] Test initialization
+  - [x] Test Forward Propagation
 
 - *(Add more details as you go)*
 

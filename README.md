@@ -6,7 +6,7 @@ A multi-layer perceptron neural network in Go implemented from scratch, without 
 
 - [x] Activation functions: ReLU, Sigmoid, Tanh, Linear
 - [x] Layer struct with weights, biases, and activation
-- [ ] Layer forward pass
+- [x] Layer forward pass
 - [ ] Network struct (MLP)
 - [ ] Forward propagation
 - [ ] Backward propagation
@@ -35,12 +35,14 @@ go test ./...
 ### Project Structure
 
 - `activation/` – Activation functions and tests
-- `layer/` – Layer struct and logic 
+- `layer/` – Layer struct, forward pass, and logic 
 - `main.go` – Entry point (to be implemented)
 
 ## Design Notes
 
 This project uses a layer-first approach (rather than a neuron-first approach) for efficiency and simplicity, leveraging Go's strengths with slices and arrays.
+
+For layers with fewer than 1000 neurons, the current sequential implementation is efficient and simple. For larger layers, I consider parallelizing the forward pass using goroutines to improve performance.
 
 ## Roadmap
 
