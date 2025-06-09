@@ -1,6 +1,9 @@
 package activation
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 type ActivationFunc interface {
 	Forward(x float64) float64
@@ -50,17 +53,19 @@ func (t Tanh) String() string {
 	return "Tanh"
 }
 
-func NewActivation(name string) ActivationFunc {
+func NewActivation(name string) (ActivationFunc, error) {
 	switch name {
 	case "relu":
-		return ReLU{}
+		return ReLU{}, nil
 	case "sigmoid":
-		return Sigmoid{}
+		return Sigmoid{}, nil
 	case "linear":
-		return Linear{}
+		return Linear{}, nil
 	case "tanh":
-		return Tanh{}
+		return Tanh{}, nil
+	case "":
+		return nil, fmt.Errorf("activation function name cannot be empty")
 	default:
-		return Linear{}
+		return nil, fmt.Errorf("unknown activation function: %q, supported: relu, sigmoid, linear, tanh", name)
 	}
 }
