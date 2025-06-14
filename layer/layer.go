@@ -94,12 +94,12 @@ func (l *Layer) Forward(input []float64) ([]float64, error) {
 	}
 
 	if len(l.Biases) != l.outputSize {
-		return nil, fmt.Errorf("layer biases output size mistmatch: expceted %d got %d", l.outputSize, len(l.Biases))
+		return nil, fmt.Errorf("layer biases output size mismatch: expected %d got %d", l.outputSize, len(l.Biases))
 	}
 
 	for i, weightRow := range l.Weights {
 		if len(weightRow) != l.inputSize {
-			return nil, fmt.Errorf("neuron %d has %d weights, expcted %d", i, len(weightRow), l.inputSize)
+			return nil, fmt.Errorf("neuron %d has %d weights, expected %d", i, len(weightRow), l.inputSize)
 		}
 	}
 
