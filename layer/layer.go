@@ -19,14 +19,31 @@ type Layer struct {
 
 	// Activation function to apply to the layer outputs
 	Activation activation.ActivationFunc
+
+	// Store dimensions for validation
+	inputSize, outputSize int
 }
 
-func NewLayer(inputSize, outputSize int, activation activation.ActivationFunc) *Layer {
+func NewLayer(inputSize, outputSize int, activationFunc activation.ActivationFunc) (*Layer, error) {
+	if inputSize <= 0 {
+		return nil, fmt.Errorf("input size must be positive, got %d", inputSize)
+	}
+
+	if outputSize <= 0 {
+		return nil, fmt.Errorf("output size must be positive, got %d", outputSize)
+	}
+
+	if activationFunc == nil {
+		return nil, fmt.Errorf("activation function cannot be nil")
+	}
+
 	return &Layer{
 		Weights:    initWeights(inputSize, outputSize),
 		Biases:     initBiases(outputSize),
-		Activation: activation,
-	}
+		Activation: activationFunc,
+		inputSize:  inputSize,
+		outputSize: outputSize,
+	}, nil
 }
 
 func initWeights(inputSize, outputSize int) [][]float64 {
@@ -38,7 +55,6 @@ func initWeights(inputSize, outputSize int) [][]float64 {
 			// Initialize weights with small random values
 			weights[i][j] = rand.Float64()*2 - 1 // Random value between -1 and 1
 		}
-
 	}
 	return weights
 }
@@ -49,20 +65,53 @@ func initBiases(outputSize int) []float64 {
 	for i := range biases {
 		biases[i] = rand.Float64()*2 - 1
 	}
-
 	return biases
 }
 
-func (l *Layer) Forward(input []float64) []float64 {
-	if len(input) != len(l.Weights[0]) {
-		panic(fmt.Sprintf("Dimension Mismatch in Forward(): input length is %d, weight length is %d.", len(input), len(l.Weights)))
+func (l *Layer) Forward(input []float64) ([]float64, error) {
+	if input == nil {
+		return nil, fmt.Errorf("input cannot be nil")
 	}
-	return l.forwardProp(input)
+
+	if len(input) == 0 {
+		return nil, fmt.Errorf("input cannot be empty")
+	}
+
+	if len(input) != l.inputSize {
+		return nil, fmt.Errorf("input size mismatch: expected %d got %d", l.inputSize, len(input))
+	}
+
+	if len(l.Weights) != l.outputSize {
+		return nil, fmt.Errorf("layer weights output size mismatch: expected %d got %d", l.outputSize, len(l.Weights))
+	}
+
+	if l.Weights == nil {
+		return nil, fmt.Errorf("layer weights cannot be nil")
+	}
+
+	if l.Biases == nil {
+		return nil, fmt.Errorf("layer biases cannot be nil")
+	}
+
+	if len(l.Biases) != l.outputSize {
+		return nil, fmt.Errorf("layer biases output size mistmatch: expceted %d got %d", l.outputSize, len(l.Biases))
+	}
+
+	for i, weightRow := range l.Weights {
+		if len(weightRow) != l.inputSize {
+			return nil, fmt.Errorf("neuron %d has %d weights, expcted %d", i, len(weightRow), l.inputSize)
+		}
+	}
+
+	if l.Activation == nil {
+		return nil, fmt.Errorf("activation function cannot be nil")
+	}
+
+	return l.forwardProp(input), nil
 }
 
 func (l *Layer) forwardProp(x []float64) []float64 {
-	outputSize := len(l.Weights)
-	outputs := make([]float64, outputSize)
+	outputs := make([]float64, l.outputSize)
 
 	for i := range l.Weights {
 		w_i := l.Weights[i]
@@ -71,4 +120,16 @@ func (l *Layer) forwardProp(x []float64) []float64 {
 		outputs[i] = z
 	}
 	return outputs
+}
+
+func (l *Layer) InputSize() int {
+	return l.inputSize
+}
+
+func (l *Layer) OutputSize() int {
+	return l.outputSize
+}
+
+func (l *Layer) String() string {
+	return fmt.Sprintf("Layer(input=%d, output=%d, activation=%s)", l.inputSize, l.outputSize, l.Activation.String())
 }
