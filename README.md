@@ -4,12 +4,12 @@ A multi-layer perceptron neural network in Go implemented from scratch, without 
 
 ## Features
 
-- [x] Activation functions: ReLU, Sigmoid, Tanh, Linear with comprehensive testing
-- [x] Math utilities: DotProduct with zero-allocation performance
-- [x] Layer struct with weights, biases, and activation
+- [x] **Activation functions**: ReLU, Sigmoid, Tanh, Linear with comprehensive testing
+- [x] **Math utilities**: DotProduct with zero-allocation performance
+- [x] **Layer struct**: with weights, biases, and activation
 - [x] Layer forward pass with thread-safe concurrent execution
-- [x] Network struct (MLP) with error handling and tests
-- [ ] Forward propagation
+- [x] Network struct (MLP) with comprehensive testing suite
+- [x] Network Forward propagation with intermediate results for backpropagation
 - [ ] Backward propagation
 - [ ] Training loop
 - [ ] Data loading
@@ -25,18 +25,39 @@ A multi-layer perceptron neural network in Go implemented from scratch, without 
   - Large layers (784×128): ~64-69 μs/op
   - Only 1 memory allocation per forward pass
   - Thread-safe for concurrent inference
-- **Property testing**: Mathematical invariants verified (commutativity, distributivity, etc.)
 
-## Planned Subsystems
+- **Network Forward Pass**:
+  - Only **632B and 3 allocations** per forward pass for medium networks
 
-- [x] Activation Function Subsystem - completed with comprehensive testing
-- [x] Math Utilities Subsystem - completed with comprehensive testing
-- [x] Layer Subsystem - completed with thread-safe forward propagation
-- Data Management Subsystem
-- Network Architecture Subsystem
-- Training Subsystem
-- Model Persistence Subsystem
-- Evaluation Subsystem
+| Network Size | Forward Pass Time | Memory/Op | Allocations |
+|---| :---:|:---:|:---:|
+| Tiny (3→2→1) | ~68ns | 24B | 2 |
+| Small (10→5→1) | ~95ns | 56B | 2 |
+| Medium (100→50→25→10) | ~3.7μs | 704B | 3 |
+| Large (784→128→64→10) | ~72μs | 1616B | 3 |
+| Deep (8 layers) | ~6.4μs | 2,408B | 8 |
+
+- **Activation Function Performance**
+  - Linear: Baseline (fastest)
+  - ReLU: ~15% slower than linear
+  - Sigmoid: ~54% slower than linear
+  - Tanh: ~62% slower than linear
+
+Concurrency Benefits
+- Sequential processing: ~3.7μs/op for medium networks
+- Concurrent (2 goroutines): ~566ns/op (6.5x speedup potential)
+
+- **Mathematical Correctness**
+  - **Property testing**: Mathematical invariants verified (commutativity, distributivity, etc.)
+  - **Numerical stability**: Handles extreme values (infinity, NaN, very large/small numbers)
+  - **Gradient readiness**: `ForwardWithIntermediateResults()` provides foundation for backpropagation
+
+## Test Coverage Status
+### Completed Test Suites
+- **Activation Functions**: Unit, Property, Benchmark tests :heavy_check_mark:
+- **Math Utilities**: Unit, Property, Benchmark tests with zero allocation :heavy_check_mark:
+- **Layer**: Unit, Component, Integration, Property, Concurrency, Benchmark tests :heavy_check_mark:
+- **Network (MLP)**: Unit, Component, Integration, Property, Concurrency, Benchmark tests :heavy_check_mark:
 
 ## Getting Started
 
@@ -49,23 +70,32 @@ go test ./...
 # Run tests with verbose output
 go test -v ./...
 
-# Run only activation function tests
+# Run specific package tests
 go test ./activation
 go test ./mathutil
 go test ./layer
+go test ./network
 
 # Run benchmarks
+go test -bench=. ./..
+
+# Run specific package benchmarks
 go test -bench=. ./activation
 go test -bench=. ./mathutil
 go test -bench=. ./layer
+go test -bench=. ./network
 
 # Run benchmarks with memory allocation stats
 go test -bench=. -benchmem ./activation
 go test -bench=. -benchmem ./mathutil
 go test -bench=. -benchmem ./layer
+go test -bench=. -benchmem ./network
 
 # Run with race detector to verify thread safety
-go test -race ./layer
+go test -race ./..
+
+# Run tests with coverage
+go test -cover ./...
 ```
 
 ### Project Structure
@@ -78,12 +108,12 @@ neural-network-project/
 ├── layer/                # Layer struct and logic
 │   ├── layer.go
 │   └── layer_test.go     # Comprehensive tests including concurrency
-├── mlp/                  # Multi-layer perceptron (network struct)
+├── network/              # Multi-layer perceptron (network struct)
 │   ├── mlp.go
-│   └── mlp_test.go
+│   └── mlp_test.go       # Comprehensive tests with intergration pipelines
 ├── mathutil/             # Math utilities
-│   ├── mathutil.go
-│   └── mathutil_test.go  # Comprehensive tests with benchmarks
+│   ├── vector.go
+│   └── vector_test.go  # Comprehensive tests with benchmarks
 ├── progress_tracker.md   # Implementation progress and notes
 ├── README.md             # Project overview and instructions
 └── go.mod                # Go module file
@@ -92,8 +122,45 @@ neural-network-project/
 - `activation/` – Implements activation functions
 - `mathutil/` - Math utilities with zero-allocation performance guarantees
 - `layer/` – Contains layer struct, initialization, forward pass
-- `mlp/` - Contains MLP (network) struct, constructor
+- `network/` - Complete MLP network wtih configuraiton and pipeline support
 - `main.go` – Entry point (to be implemented)
+
+## Use Example
+```
+package main
+
+import (
+    "fmt"
+    "neural-network-project/network"
+)
+
+func main() {
+    // Create a network configuration
+    config := network.NetworkConfig{
+        LayerSizes:   []int{784, 128, 64, 10},
+        Activations:  []string{"relu", "relu", "sigmoid"},
+        LearningRate: 0.001,
+    }
+
+    // Create the network
+    mlp, err := network.NewMLP(config)
+    if err != nil {
+        panic(err)
+    }
+
+    // Prepare input (e.g., flattened 28x28 image)
+    input := make([]float64, 784)
+    // ... fill input with data ...
+
+    // Forward pass
+    output, err := mlp.Forward(input)
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("Network output: %v\n", output)
+}
+```
 
 ## Design Notes
 
@@ -118,9 +185,11 @@ Hence, in commits [6973ce6](https://github.com/Zhaoshan-Duan/nn-go/commit/6973ce
 
 Tests are re-organized by sub-tests in parallel execution. Benchmarking was also added just to ensure I had zero memory allocation for activation functions, and I knew I wanted to incorporate concurrency for matrix operations later.
 
+When adapting this apporach for `network/`, one single test script has become barely managable as it had 2880 lines (It was barely manageable for `layer/` already, which had 1767 lines). So at commit placeholder, I broken down the test script into individual sctips for each testing level.
+
 ## Roadmap
 
-See `progress_tracker.md` for detailed progress.
+See `progress_tracker.md` for detailed progress and technical notes.
 
 ## Implementation Plan
 
@@ -128,7 +197,3 @@ See `progress_tracker.md` for detailed progress.
 - **Phase 2:** Network-level forward propagation and testing
 - **Phase 3:** Backward propagation and training
 - **Phase 4:** Extensions and optimizations (including targeted concurrency)
-
-## Usage Examples (Placeholder)
-
-_Examples will be added as components are implemented._
