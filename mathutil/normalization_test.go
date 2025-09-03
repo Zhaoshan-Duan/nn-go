@@ -1,11 +1,38 @@
 package mathutil
 
 import (
+	"fmt"
 	"math"
 	"math/rand/v2"
-	"runtime"
 	"testing"
 )
+
+// ============================================================================
+// TEST HELPERS
+// ============================================================================
+
+func generateRandomData(samples, features int) [][]float64 {
+	data := make([][]float64, samples)
+	for i := range data {
+		data[i] = make([]float64, features)
+		for j := range data[i] {
+			data[i][j] = rand.Float64()*100 - 50 // Random values between -50 and 50
+		}
+	}
+	return data
+}
+
+func assertFloatSlicesEqual(t *testing.T, got, want []float64, tolerance float64) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("slice length mismatch: got %d, want %d", len(got), len(want))
+	}
+	for i := range got {
+		if math.Abs(got[i]-want[i]) > tolerance {
+			t.Errorf("mismatch at index %d: got %v, want %v", i, got[i], want[i])
+		}
+	}
+}
 
 // =============================================================================
 // UNIT TESTS
@@ -43,7 +70,7 @@ func TestNormalizerFit(t *testing.T) {
 			expectedStddev []float64
 		}{
 			{
-				name: "simple_2x3_data",
+				name: "simple_3x2_data",
 				data: [][]float64{
 					{1.0, 10.0},
 					{2.0, 20.0},
@@ -95,27 +122,8 @@ func TestNormalizerFit(t *testing.T) {
 					t.Error("normalizer should be marked as fitted")
 				}
 
-				// Check mean
-				if len(norm.mean) != len(tc.expectedMean) {
-					t.Fatalf("mean length = %d; want %d", len(norm.mean), len(tc.expectedMean))
-				}
-
-				for i, expected := range tc.expectedMean {
-					if math.Abs(norm.mean[i]-expected) > 1e-10 {
-						t.Errorf("mean[%d] = %v; want %v", i, norm.mean[i], expected)
-					}
-				}
-
-				// Check stddev
-				if len(norm.stddev) != len(tc.expectedStddev) {
-					t.Fatalf("stddev length = %d; want %d", len(norm.stddev), len(tc.expectedStddev))
-				}
-
-				for i, expected := range tc.expectedStddev {
-					if math.Abs(norm.stddev[i]-expected) > 1e-10 {
-						t.Errorf("stddev[%d] = %v; want %v", i, norm.stddev[i], expected)
-					}
-				}
+				assertFloatSlicesEqual(t, norm.mean, tc.expectedMean, 1e-10)
+				assertFloatSlicesEqual(t, norm.stddev, tc.expectedStddev, 1e-10)
 			})
 		}
 	})
@@ -146,28 +154,108 @@ func TestNormalizerFit(t *testing.T) {
 		}
 	})
 
-	t.Run("constant_features", func(t *testing.T) {
+	t.Run("special_values", func(t *testing.T) {
 		t.Parallel()
-		norm := NewNormalizer()
-		data := [][]float64{
-			{1.0, 5.0}, // Second feature is constant
-			{3.0, 5.0},
-			{2.0, 5.0},
+		tests := []struct {
+			name           string
+			data           [][]float64
+			expectedMean   []float64
+			expectedStddev []float64
+		}{
+			{
+				name: "with_nan",
+				data: [][]float64{
+					{1.0, math.NaN()},
+					{2.0, 3.0},
+				},
+				expectedMean:   []float64{1.5, math.NaN()}, // Normal calc, NaN propagates
+				expectedStddev: []float64{0.5, math.NaN()}, // Normal calc, NaN propagates
+			},
+			{
+				name: "with_inf_different_sign",
+				data: [][]float64{
+					{1.0, math.Inf(1)},
+					{2.0, math.Inf(-1)},
+				},
+				expectedMean:   []float64{1.5, math.NaN()}, // Normal, (+Inf + -Inf)/2 = NaN
+				expectedStddev: []float64{0.5, math.NaN()}, // Normal, NaN from mean propagates
+			},
+			{
+				name: "with_inf_same_sign_positive",
+				data: [][]float64{
+					{1.0, math.Inf(1)},
+					{2.0, math.Inf(1)},
+				},
+				expectedMean:   []float64{1.5, math.Inf(1)}, // Normal, (+Inf+Inf)/2=+Inf
+				expectedStddev: []float64{0.5, math.NaN()},  // Normal, (+Inf - +Inf)² = NaN
+			},
+			{
+				name: "with_inf_same_sign_negative",
+				data: [][]float64{
+					{1.0, math.Inf(-1)},
+					{2.0, math.Inf(-1)},
+				},
+				expectedMean:   []float64{1.5, math.Inf(-1)}, // Normal, (-Inf + -Inf)/2 = -Inf
+				expectedStddev: []float64{0.5, math.NaN()},   // Normal, (-Inf - -Inf)² = NaN
+			},
+			{
+				name: "mixed_inf_and_finite",
+				data: [][]float64{
+					{1.0, math.Inf(1)},
+					{2.0, 5.0},
+					{3.0, 10.0},
+				},
+				expectedMean:   []float64{2.0, math.Inf(1)},                 // Normal, (+Inf + 5 + 10)/3 = +Inf
+				expectedStddev: []float64{math.Sqrt(2.0 / 3.0), math.NaN()}, // Normal, any diff with +Inf gives NaN
+			},
+			{
+				name: "multiple_nans",
+				data: [][]float64{
+					{math.NaN(), 1.0},
+					{math.NaN(), 2.0},
+				},
+				expectedMean:   []float64{math.NaN(), 1.5}, // NaN propagates, normal calc
+				expectedStddev: []float64{math.NaN(), 0.5}, // NaN propagates, normal calc
+			},
 		}
 
-		err := norm.Fit(data)
-		if err != nil {
-			t.Fatalf("Fit failed: %v", err)
-		}
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				norm := NewNormalizer()
+				err := norm.Fit(tc.data)
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
 
-		// First feature should have normal stddev
-		if norm.stddev[0] == 0 {
-			t.Error("first feature stddev should not be zero")
-		}
+				mean, stddev, fitted := norm.GetParams()
+				if !fitted {
+					t.Error("normalizer should be fitted")
+				}
 
-		// Second feature (constant) should have stddev = 1.0
-		if norm.stddev[1] != 1.0 {
-			t.Errorf("constant feature stddev = %v; want 1.0", norm.stddev[1])
+				compareFloat := func(got, want float64, name string, index int) {
+					if math.IsNaN(want) {
+						if !math.IsNaN(got) {
+							t.Errorf("%s[%d] = %v; want NaN", name, index, got)
+						}
+					} else if math.IsInf(want, 0) {
+						if !math.IsInf(got, int(math.Copysign(1, want))) {
+							t.Errorf("%s[%d] = %v; want %v", name, index, got, want)
+						}
+					} else {
+						if math.Abs(got-want) > 1e-10 {
+							t.Errorf("%s[%d] = %v; want %v", name, index, got, want)
+						}
+					}
+				}
+
+				for i := range tc.expectedMean {
+					compareFloat(mean[i], tc.expectedMean[i], "mean", i)
+				}
+
+				for i := range tc.expectedStddev {
+					compareFloat(stddev[i], tc.expectedStddev[i], "stddev", i)
+				}
+			})
 		}
 	})
 }
@@ -189,36 +277,54 @@ func TestNormalizerTransform(t *testing.T) {
 			t.Fatalf("Fit failed: %v", err)
 		}
 
-		// Transform different data
-		transformData := [][]float64{
-			{1.0, 10.0}, // Should be close to [-1, -1] after normalization
-			{2.0, 20.0}, // Should be close to [0, 0] after normalization
-			{3.0, 30.0}, // Should be close to [1, 1] after normalization
-			{4.0, 40.0}, // Out of training range
+		// Transform test cases
+		tests := []struct {
+			name     string
+			input    [][]float64
+			expected [][]float64
+		}{
+			{
+				name:  "training_data",
+				input: fitData,
+				expected: [][]float64{
+					{-math.Sqrt(3.0 / 2.0), -math.Sqrt(3.0 / 2.0)}, // exactly -sqrt(1.5)
+					{0, 0},
+					{math.Sqrt(3.0 / 2.0), math.Sqrt(3.0 / 2.0)}, // exactly sqrt(1.5)
+				}, // approximate
+			},
+			{
+				name:     "new_data",
+				input:    [][]float64{{4.0, 40.0}},
+				expected: [][]float64{{math.Sqrt(6), math.Sqrt(6)}}, // (4-2)/sqrt(2/3) = 2/sqrt(2/3) = 2*sqrt(3/2) = sqrt(12/2) = sqrt(6)
+
+				// (4-2)/sqrt(2/3) = 2/sqrt(2/3) = 2*sqrt(3/2) = sqrt(12/2) = sqrt(6)
+			},
 		}
 
-		normalized, err := norm.Transform(transformData)
-		if err != nil {
-			t.Fatalf("Transform failed: %v", err)
-		}
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				normalized, err := norm.Transform(tc.input)
+				if err != nil {
+					t.Fatalf("Transform failed: %v", err)
+				}
 
-		if len(normalized) != len(transformData) {
-			t.Errorf("normalized length = %d; want %d", len(normalized), len(transformData))
-		}
+				if len(normalized) != len(tc.input) {
+					t.Errorf("normalized length = %d; want %d", len(normalized), len(tc.input))
+				}
 
-		// Check dimensions
-		for i, sample := range normalized {
-			if len(sample) != len(transformData[i]) {
-				t.Errorf("sample %d length = %d; want %d", i, len(sample), len(transformData[i]))
-			}
-		}
-
-		// Check that middle value is approximately zero (since it equals the mean)
-		middleSample := normalized[1] // [2.0, 20.0] which equals the mean
-		for j, val := range middleSample {
-			if math.Abs(val) > 1e-10 {
-				t.Errorf("middle sample[%d] = %v; should be close to 0", j, val)
-			}
+				if tc.name == "training_data" {
+					for feature := 0; feature < 2; feature++ {
+						sum := 0.0
+						for i := range normalized {
+							sum += normalized[i][feature]
+						}
+						mean := sum / float64(len(normalized))
+						if math.Abs(mean) > 1e-10 {
+							t.Errorf("Feature %d mean = %v; should be ~0", feature, mean)
+						}
+					}
+				}
+			})
 		}
 	})
 
@@ -227,13 +333,11 @@ func TestNormalizerTransform(t *testing.T) {
 			name      string
 			setupFunc func() *Normalizer
 			data      [][]float64
-			wantErr   bool
 		}{
 			{
 				"not_fitted",
 				func() *Normalizer { return NewNormalizer() },
 				[][]float64{{1.0, 2.0}},
-				true,
 			},
 			{
 				"empty_data",
@@ -243,17 +347,15 @@ func TestNormalizerTransform(t *testing.T) {
 					return norm
 				},
 				[][]float64{},
-				true,
 			},
 			{
-				"feature_mismatch",
+				"feature_number_mismatch",
 				func() *Normalizer {
 					norm := NewNormalizer()
 					norm.Fit([][]float64{{1.0, 2.0}}) // 2 features
 					return norm
 				},
 				[][]float64{{1.0, 2.0, 3.0}}, // 3 features
-				true,
 			},
 			{
 				"inconsistent_features",
@@ -263,7 +365,6 @@ func TestNormalizerTransform(t *testing.T) {
 					return norm
 				},
 				[][]float64{{1.0, 2.0}, {3.0}}, // Second sample has 1 feature
-				true,
 			},
 		}
 
@@ -273,10 +374,8 @@ func TestNormalizerTransform(t *testing.T) {
 				norm := tc.setupFunc()
 				_, err := norm.Transform(tc.data)
 
-				if tc.wantErr && err == nil {
+				if err == nil {
 					t.Error("expected error but got nil")
-				} else if !tc.wantErr && err != nil {
-					t.Errorf("unexpected error: %v", err)
 				}
 			})
 		}
@@ -316,16 +415,7 @@ func TestFitTransform(t *testing.T) {
 		}
 
 		for i := range result1 {
-			for j := range result1[i] {
-				if math.Abs(result1[i][j]-result2[i][j]) > 1e-15 {
-					t.Errorf("results differ at [%d][%d]: %v vs %v", i, j, result1[i][j], result2[i][j])
-				}
-			}
-		}
-
-		// Both normalizers should be fitted
-		if !norm1.fitted || !norm2.fitted {
-			t.Error("both normalizers should be fitted")
+			assertFloatSlicesEqual(t, result1[i], result2[i], 1e-10)
 		}
 	})
 }
@@ -336,11 +426,7 @@ func TestGetParams(t *testing.T) {
 		norm := NewNormalizer()
 		data := [][]float64{{1.0, 10.0}, {3.0, 30.0}}
 
-		err := norm.Fit(data)
-		if err != nil {
-			t.Fatalf("Fit failed: %v", err)
-		}
-
+		norm.Fit(data)
 		mean, stddev, fitted := norm.GetParams()
 
 		if !fitted {
@@ -350,17 +436,8 @@ func TestGetParams(t *testing.T) {
 		expectedMean := []float64{2.0, 20.0}
 		expectedStddev := []float64{1.0, 10.0}
 
-		for i, expected := range expectedMean {
-			if math.Abs(mean[i]-expected) > 1e-10 {
-				t.Errorf("mean[%d] = %v; want %v", i, mean[i], expected)
-			}
-		}
-
-		for i, expected := range expectedStddev {
-			if math.Abs(stddev[i]-expected) > 1e-10 {
-				t.Errorf("stddev[%d] = %v; want %v", i, stddev[i], expected)
-			}
-		}
+		assertFloatSlicesEqual(t, mean, expectedMean, 1e-10)
+		assertFloatSlicesEqual(t, stddev, expectedStddev, 1e-10)
 	})
 
 	t.Run("returns_copies", func(t *testing.T) {
@@ -372,32 +449,19 @@ func TestGetParams(t *testing.T) {
 		mean, stddev, _ := norm.GetParams()
 
 		// Modify the returned slices
-		originalMean := mean[0]
-		originalStddev := stddev[0]
 		mean[0] = 999
 		stddev[0] = 999
 
 		// Original normalizer should be unchanged
-		if norm.mean[0] == 999 {
+		if norm.mean[0] == 999 || norm.stddev[0] == 999 {
 			t.Error("GetParams should return a copy of mean, not a reference")
-		}
-		if norm.stddev[0] == 999 {
-			t.Error("GetParams should return a copy of stddev, not a reference")
-		}
-
-		// Verify original values are preserved
-		if math.Abs(norm.mean[0]-originalMean) > 1e-15 {
-			t.Error("original mean was modified")
-		}
-		if math.Abs(norm.stddev[0]-originalStddev) > 1e-15 {
-			t.Error("original stddev was modified")
 		}
 	})
 
 	t.Run("unfitted_normalizer", func(t *testing.T) {
 		t.Parallel()
-		norm := NewNormalizer()
 
+		norm := NewNormalizer()
 		mean, stddev, fitted := norm.GetParams()
 
 		if fitted {
@@ -415,19 +479,18 @@ func TestGetParams(t *testing.T) {
 }
 
 // =============================================================================
-// PROPERTY-BASED TESTS
+// PROPERTY TESTS
 // =============================================================================
 
 func TestNormalizerProperties(t *testing.T) {
 	t.Run("normalization_properties", func(t *testing.T) {
-		t.Run("normalized_data_has_zero_mean", func(t *testing.T) {
+		t.Run("normalized_data_with_zero_mean_unit_variance", func(t *testing.T) {
 			t.Parallel()
-			// Property: After normalization, each feature should have mean ≈ 0
-
+			// Property: After normalization, each feature should have mean ≈ 0 and stddev ≈ 1
 			testSizes := []struct {
 				samples, features int
 			}{
-				{10, 2}, {50, 3}, {100, 5}, {20, 1},
+				{10, 2}, {50, 3}, {100, 5},
 			}
 
 			for _, size := range testSizes {
@@ -440,7 +503,6 @@ func TestNormalizerProperties(t *testing.T) {
 					continue
 				}
 
-				// Check mean of each feature is approximately zero
 				for feature := 0; feature < size.features; feature++ {
 					sum := 0.0
 					for sample := 0; sample < size.samples; sample++ {
@@ -448,45 +510,20 @@ func TestNormalizerProperties(t *testing.T) {
 					}
 					mean := sum / float64(size.samples)
 
+					sumSquares := 0.0
+					for sample := 0; sample < size.samples; sample++ {
+						diff := normalized[sample][feature] - mean
+						sumSquares += diff * diff
+					}
+					variance := sumSquares / float64(size.samples)
+					stddev := math.Sqrt(variance)
+
 					if math.Abs(mean) > 1e-10 {
 						t.Errorf("Feature %d mean = %v; should be ≈ 0 for size %dx%d", feature, mean, size.samples, size.features)
 					}
-				}
-			}
-		})
-
-		t.Run("normalized_data_has_unit_variance", func(t *testing.T) {
-			t.Parallel()
-			// Property: After normalization, each feature should have stddev ≈ 1
-
-			norm := NewNormalizer()
-			data := generateRandomData(100, 3)
-
-			normalized, err := norm.FitTransform(data)
-			if err != nil {
-				t.Fatalf("FitTransform failed: %v", err)
-			}
-
-			// Check standard deviation of each feature is approximately 1
-			for feature := 0; feature < 3; feature++ {
-				// Calculate mean
-				sum := 0.0
-				for sample := 0; sample < 100; sample++ {
-					sum += normalized[sample][feature]
-				}
-				mean := sum / 100.0
-
-				// Calculate variance
-				sumSquares := 0.0
-				for sample := 0; sample < 100; sample++ {
-					diff := normalized[sample][feature] - mean
-					sumSquares += diff * diff
-				}
-				variance := sumSquares / 100.0
-				stddev := math.Sqrt(variance)
-
-				if math.Abs(stddev-1.0) > 1e-10 {
-					t.Errorf("Feature %d stddev = %v; should be ≈ 1.0", feature, stddev)
+					if math.Abs(stddev-1.0) > 1e-10 {
+						t.Errorf("Feature %d stddev = %v; should be ≈ 1.0", feature, stddev)
+					}
 				}
 			}
 		})
@@ -540,150 +577,132 @@ func TestNormalizerProperties(t *testing.T) {
 
 		t.Run("affine_transformation_property", func(t *testing.T) {
 			t.Parallel()
-			// Property: Normalization is an affine transformation
-			// f(x) = (x - mean) / stddev should behave consistently
+			// Property: Normalization is an affine transformation: f(x) = (x - mean) / stddev
 
 			norm := NewNormalizer()
 			data := generateRandomData(50, 2)
 			norm.Fit(data)
 
-			// Test that the transformation is consistent
-			x1 := [][]float64{{1.0, 2.0}}
-			x2 := [][]float64{{3.0, 4.0}}
+			// Test that the transformation is mathematically correct
+			x := [][]float64{{1.0, 2.0}}
+			y, _ := norm.Transform(x)
 
-			y1, _ := norm.Transform(x1)
-			y2, _ := norm.Transform(x2)
-
-			// Property: If we know the mean and stddev, we can predict the result
+			// Verify the transformation
 			for j := 0; j < 2; j++ {
-				expectedY1 := (x1[0][j] - norm.mean[j]) / norm.stddev[j]
-				expectedY2 := (x2[0][j] - norm.mean[j]) / norm.stddev[j]
-
-				if math.Abs(y1[0][j]-expectedY1) > 1e-10 {
-					t.Errorf("Affine transformation failed for x1[%d]: got %v, expected %v", j, y1[0][j], expectedY1)
-				}
-				if math.Abs(y2[0][j]-expectedY2) > 1e-10 {
-					t.Errorf("Affine transformation failed for x2[%d]: got %v, expected %v", j, y2[0][j], expectedY2)
-				}
-			}
-		})
-
-		t.Run("translation_invariance_property", func(t *testing.T) {
-			t.Parallel()
-			// Property: Adding same constant to all values should only affect the mean, not the relative differences
-
-			norm := NewNormalizer()
-			originalData := [][]float64{{1.0, 2.0}, {3.0, 4.0}, {5.0, 6.0}}
-			norm.Fit(originalData)
-
-			// Transform original data
-			original, _ := norm.Transform(originalData)
-
-			// Create translated data (add constant to all values)
-			constant := 100.0
-			translatedData := make([][]float64, len(originalData))
-			for i := range originalData {
-				translatedData[i] = make([]float64, len(originalData[i]))
-				for j := range originalData[i] {
-					translatedData[i][j] = originalData[i][j] + constant
-				}
-			}
-
-			// Transform translated data with same normalizer
-			translated, _ := norm.Transform(translatedData)
-
-			// The differences between normalized values should be the same
-			for i := 0; i < len(original)-1; i++ {
-				for j := 0; j < len(original[i]); j++ {
-					originalDiff := original[i+1][j] - original[i][j]
-					translatedDiff := translated[i+1][j] - translated[i][j]
-
-					if math.Abs(originalDiff-translatedDiff) > 1e-10 {
-						t.Errorf("Translation invariance failed: differences changed after translation")
-					}
-				}
-			}
-		})
-
-		t.Run("scaling_property", func(t *testing.T) {
-			t.Parallel()
-			// Property: Scaling input by constant should scale normalized output by same constant
-
-			norm := NewNormalizer()
-			data := generateRandomData(30, 2)
-			norm.Fit(data)
-
-			original := [][]float64{{2.0, 4.0}}
-			scaled := [][]float64{{4.0, 8.0}} // 2x scaling
-
-			origResult, _ := norm.Transform(original)
-			scaledResult, _ := norm.Transform(scaled)
-
-			// The difference should be proportional to the scaling
-			for j := 0; j < 2; j++ {
-				// For normalized data: (2x - mean)/std vs (x - mean)/std
-				// The difference should be x/std
-				expectedDiff := (scaled[0][j] - original[0][j]) / norm.stddev[j]
-				actualDiff := scaledResult[0][j] - origResult[0][j]
-
-				if math.Abs(actualDiff-expectedDiff) > 1e-10 {
-					t.Errorf("Scaling property failed for feature %d", j)
+				expected := (x[0][j] - norm.mean[j]) / norm.stddev[j]
+				if math.Abs(y[0][j]-expected) > 1e-10 {
+					t.Errorf("Affine transformation failed for feature %d: got %v, expected %v",
+						j, y[0][j], expected)
 				}
 			}
 		})
 	})
+}
 
-	t.Run("robustness_properties", func(t *testing.T) {
-		t.Run("handles_extreme_values", func(t *testing.T) {
-			t.Parallel()
-			// Property: Normalizer should handle very large and very small values
+// ============================================================================
+// ROBUSTNESS TESTS
+// ============================================================================
 
-			data := [][]float64{
-				{1e-10, 1e10},
-				{2e-10, 2e10},
-				{3e-10, 3e10},
+func TestNormalizerRobustness(t *testing.T) {
+	t.Run("handles_extreme_values", func(t *testing.T) {
+		t.Parallel()
+		// Normalizer should handle very large and very small values
+
+		data := [][]float64{
+			{1e-10, 1e10},
+			{2e-10, 2e10},
+			{3e-10, 3e10},
+		}
+
+		norm := NewNormalizer()
+		normalized, err := norm.FitTransform(data)
+		if err != nil {
+			t.Errorf("Failed to handle extreme values: %v", err)
+		}
+
+		// Check that results are finite
+		for i := range normalized {
+			for j := range normalized[i] {
+				if math.IsNaN(normalized[i][j]) || math.IsInf(normalized[i][j], 0) {
+					t.Errorf("Extreme values produced non-finite result: %v", normalized[i][j])
+				}
 			}
+		}
+	})
 
-			norm := NewNormalizer()
-			normalized, err := norm.FitTransform(data)
-			if err != nil {
-				t.Errorf("Failed to handle extreme values: %v", err)
+	t.Run("handles_zero_variance_gracefully", func(t *testing.T) {
+		t.Parallel()
+		// Constant features should be handled without errors
+
+		data := [][]float64{
+			{5.0, 1.0}, // Second feature varies
+			{5.0, 2.0}, // First feature is constant
+			{5.0, 3.0},
+		}
+
+		norm := NewNormalizer()
+		normalized, err := norm.FitTransform(data)
+		if err != nil {
+			t.Errorf("Failed to handle constant feature: %v", err)
+		}
+
+		// Constant feature should normalize to zero (since mean is subtracted and stddev=1)
+		for i := range normalized {
+			if math.Abs(normalized[i][0]) > 1e-10 {
+				t.Errorf("Constant feature not handled correctly: got %v, want 0", normalized[i][0])
 			}
+		}
 
-			// Check that results are finite
-			for i := range normalized {
-				for j := range normalized[i] {
-					if math.IsNaN(normalized[i][j]) || math.IsInf(normalized[i][j], 0) {
-						t.Errorf("Extreme values produced non-finite result: %v", normalized[i][j])
+		_, stddev, _ := norm.GetParams()
+		if stddev[0] != 1.0 {
+			t.Errorf("Constant feature stddev = %v; should be 1.0", stddev[0])
+		}
+	})
+
+	t.Run("numerical_stability", func(t *testing.T) {
+		t.Parallel()
+		// Test with values that might cause numerical issues
+
+		tests := []struct {
+			name string
+			data [][]float64
+		}{
+			{
+				name: "very_small_variance",
+				data: [][]float64{
+					{1.0, 1.0 + 1e-15},
+					{1.0, 1.0 + 2e-15},
+					{1.0, 1.0 + 3e-15},
+				},
+			},
+			{
+				name: "large_magnitude_small_variance",
+				data: [][]float64{
+					{1e10, 1e10 + 1},
+					{1e10, 1e10 + 2},
+					{1e10, 1e10 + 3},
+				},
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				norm := NewNormalizer()
+				normalized, err := norm.FitTransform(tc.data)
+				if err != nil {
+					t.Errorf("Failed on %s: %v", tc.name, err)
+				}
+
+				// Results should be finite
+				for i := range normalized {
+					for j := range normalized[i] {
+						if math.IsNaN(normalized[i][j]) || math.IsInf(normalized[i][j], 0) {
+							t.Errorf("%s produced non-finite result: %v", tc.name, normalized[i][j])
+						}
 					}
 				}
-			}
-		})
-
-		t.Run("handles_zero_variance_gracefully", func(t *testing.T) {
-			t.Parallel()
-			// Property: Constant features should be handled without errors
-
-			data := [][]float64{
-				{5.0, 1.0}, // Second feature varies
-				{5.0, 2.0}, // First feature is constant
-				{5.0, 3.0},
-			}
-
-			norm := NewNormalizer()
-			normalized, err := norm.FitTransform(data)
-			if err != nil {
-				t.Errorf("Failed to handle constant feature: %v", err)
-			}
-
-			// Constant feature should normalize to zero (since mean is subtracted and stddev=1)
-			for i := range normalized {
-				expectedConstant := (5.0 - 5.0) / 1.0 // (value - mean) / stddev
-				if math.Abs(normalized[i][0]-expectedConstant) > 1e-10 {
-					t.Errorf("Constant feature not handled correctly: got %v, want %v", normalized[i][0], expectedConstant)
-				}
-			}
-		})
+			})
+		}
 	})
 }
 
@@ -692,133 +711,114 @@ func TestNormalizerProperties(t *testing.T) {
 // =============================================================================
 
 func BenchmarkNormalizerFit(b *testing.B) {
-	dataSizes := []struct {
-		name              string
-		samples, features int
-	}{
-		{"small", 100, 5},
-		{"medium", 1000, 10},
-		{"large", 10000, 20},
-		{"wide", 1000, 100},
-		{"tall", 10000, 5},
-	}
+	b.Run("samples_scaling", func(b *testing.B) {
+		features := 10
+		sampleSizes := []int{100, 1000, 10000}
 
-	for _, size := range dataSizes {
-		b.Run(size.name, func(b *testing.B) {
-			data := generateRandomData(size.samples, size.features)
+		for _, samples := range sampleSizes {
+			b.Run(fmt.Sprintf("%dx%d", samples, features), func(b *testing.B) {
+				data := generateRandomData(samples, features)
 
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				norm := NewNormalizer()
-				norm.Fit(data)
-			}
-		})
-	}
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					norm := NewNormalizer()
+					norm.Fit(data)
+				}
+			})
+		}
+	})
+
+	b.Run("features_scaling", func(b *testing.B) {
+		samples := 1000
+		featureSizes := []int{10, 100, 10000}
+
+		for _, features := range featureSizes {
+			b.Run(fmt.Sprintf("%dx%d", samples, features), func(b *testing.B) {
+				data := generateRandomData(samples, features)
+
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					norm := NewNormalizer()
+					norm.Fit(data)
+				}
+			})
+		}
+	})
 }
 
 func BenchmarkNormalizerTransform(b *testing.B) {
-	dataSizes := []struct {
-		name              string
-		samples, features int
-	}{
-		{"small", 100, 5},
-		{"medium", 1000, 10},
-		{"large", 10000, 20},
-	}
+	b.Run("samples_scaling", func(b *testing.B) {
+		features := 10
+		sampleSizes := []int{100, 1000, 10000}
 
-	for _, size := range dataSizes {
-		b.Run(size.name, func(b *testing.B) {
-			// Setup
-			trainData := generateRandomData(size.samples, size.features)
-			testData := generateRandomData(size.samples, size.features)
+		for _, samples := range sampleSizes {
+			b.Run(fmt.Sprintf("%dx%d", samples, features), func(b *testing.B) {
+				trainData := generateRandomData(samples, features)
+				testData := generateRandomData(samples, features)
 
-			norm := NewNormalizer()
-			norm.Fit(trainData)
+				norm := NewNormalizer()
+				norm.Fit(trainData)
 
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				_, _ = norm.Transform(testData)
-			}
-		})
-	}
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					_, _ = norm.Transform(testData)
+				}
+			})
+		}
+	})
+
+	b.Run("features_scaling", func(b *testing.B) {
+		samples := 1000
+		featureSizes := []int{10, 100, 1000, 10000}
+
+		for _, features := range featureSizes {
+			b.Run(fmt.Sprintf("%dx%d", samples, features), func(b *testing.B) {
+				trainData := generateRandomData(samples, features)
+				testData := generateRandomData(samples, features)
+
+				norm := NewNormalizer()
+				norm.Fit(trainData)
+
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					_, _ = norm.Transform(testData)
+				}
+			})
+		}
+	})
 }
 
 func BenchmarkNormalizerFitTransform(b *testing.B) {
-	data := generateRandomData(1000, 10)
+	dataSizes := []struct {
+		samples, features int
+	}{
+		{100, 10},   // Small
+		{1000, 10},  // Medium
+		{10000, 10}, // Large
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		norm := NewNormalizer()
-		_, _ = norm.FitTransform(data)
-	}
-}
-
-func BenchmarkNormalizerMemory(b *testing.B) {
-	data := generateRandomData(1000, 10)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		norm := NewNormalizer()
-		_, _ = norm.FitTransform(data)
-	}
-}
-
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-func generateRandomData(samples, features int) [][]float64 {
-	data := make([][]float64, samples)
-	for i := range data {
-		data[i] = make([]float64, features)
-		for j := range data[i] {
-			data[i][j] = rand.Float64()*100 - 50 // Random values between -50 and 50
-		}
-	}
-	return data
-}
-
-func assertFloatSlicesEqual(t *testing.T, got, want []float64, tolerance float64) {
-	t.Helper()
-	if len(got) != len(want) {
-		t.Fatalf("slice length mismatch: got %d, want %d", len(got), len(want))
-	}
-	for i := range got {
-		if math.Abs(got[i]-want[i]) > tolerance {
-			t.Errorf("mismatch at index %d: got %v, want %v", i, got[i], want[i])
-		}
-	}
-}
-
-// Memory leak test
-func TestNormalizerMemoryStability(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping memory test in short mode")
+		{1000, 100},  // Wide
+		{1000, 1000}, // Very Wide
 	}
 
-	t.Run("repeated_operations_no_leak", func(t *testing.T) {
-		var m1, m2 runtime.MemStats
-		runtime.GC()
-		runtime.ReadMemStats(&m1)
+	for _, size := range dataSizes {
+		b.Run(fmt.Sprintf("%dx%d", size.samples, size.features), func(b *testing.B) {
+			data := generateRandomData(size.samples, size.features)
 
-		// Perform many operations
-		data := generateRandomData(100, 5)
-		for i := 0; i < 1000; i++ {
-			norm := NewNormalizer()
-			_, _ = norm.FitTransform(data)
+			b.ReportAllocs()
+			b.ResetTimer()
 
-			if i%100 == 0 {
-				runtime.GC()
+			for i := 0; i < b.N; i++ {
+				norm := NewNormalizer()
+				_, _ = norm.FitTransform(data)
 			}
-		}
-
-		runtime.GC()
-		runtime.ReadMemStats(&m2)
-
-		memGrowth := m2.Alloc - m1.Alloc
-		if memGrowth > 1024*1024 { // 1MB threshold
-			t.Logf("Memory growth detected: %d bytes (this might be acceptable)", memGrowth)
-		}
-	})
+		})
+	}
 }

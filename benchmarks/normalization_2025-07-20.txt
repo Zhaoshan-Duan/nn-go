@@ -1,0 +1,24 @@
+goos: linux
+goarch: amd64
+pkg: neural-network-project/mathutil
+cpu: AMD Ryzen 7 7840U w/ Radeon  780M Graphics     
+BenchmarkNormalizerFit/samples_scaling/100x10-16  	  756786	      1453 ns/op	     160 B/op	       2 allocs/op
+BenchmarkNormalizerFit/samples_scaling/1000x10-16 	   77100	     16085 ns/op	     160 B/op	       2 allocs/op
+BenchmarkNormalizerFit/samples_scaling/10000x10-16         	    5853	    228884 ns/op	     160 B/op	       2 allocs/op
+BenchmarkNormalizerFit/features_scaling/1000x10-16         	   64904	     17178 ns/op	     160 B/op	       2 allocs/op
+BenchmarkNormalizerFit/features_scaling/1000x100-16        	    6411	    174057 ns/op	    1792 B/op	       2 allocs/op
+BenchmarkNormalizerFit/features_scaling/1000x10000-16      	       8	 129451148 ns/op	  163840 B/op	       2 allocs/op
+BenchmarkNormalizerTransform/samples_scaling/100x10-16     	  248961	      4876 ns/op	   10688 B/op	     101 allocs/op
+BenchmarkNormalizerTransform/samples_scaling/1000x10-16    	   21842	     56373 ns/op	  104576 B/op	    1001 allocs/op
+BenchmarkNormalizerTransform/samples_scaling/10000x10-16   	    1732	    778616 ns/op	 1045761 B/op	   10001 allocs/op
+BenchmarkNormalizerTransform/features_scaling/1000x10-16   	   19240	     62151 ns/op	  104576 B/op	    1001 allocs/op
+BenchmarkNormalizerTransform/features_scaling/1000x100-16  	    2384	    490511 ns/op	  920581 B/op	    1001 allocs/op
+BenchmarkNormalizerTransform/features_scaling/1000x1000-16 	     342	   3097929 ns/op	 8216579 B/op	    1001 allocs/op
+BenchmarkNormalizerTransform/features_scaling/1000x10000-16         	      50	  22906710 ns/op	81944581 B/op	    1001 allocs/op
+BenchmarkNormalizerFitTransform/100x10-16                           	  170395	      7051 ns/op	   10848 B/op	     103 allocs/op
+BenchmarkNormalizerFitTransform/1000x10-16                          	   17425	     71620 ns/op	  104736 B/op	    1003 allocs/op
+BenchmarkNormalizerFitTransform/10000x10-16                         	    1082	   1128366 ns/op	 1045922 B/op	   10003 allocs/op
+BenchmarkNormalizerFitTransform/1000x100-16                         	    1614	    693554 ns/op	  922371 B/op	    1003 allocs/op
+BenchmarkNormalizerFitTransform/1000x1000-16                        	      76	  15996836 ns/op	 8232960 B/op	    1003 allocs/op
+PASS
+ok  	neural-network-project/mathutil	29.375s

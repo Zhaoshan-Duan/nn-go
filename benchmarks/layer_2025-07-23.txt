@@ -1,0 +1,31 @@
+goos: linux
+goarch: amd64
+pkg: neural-network-project/layer
+cpu: AMD Ryzen 7 7840U w/ Radeon  780M Graphics     
+BenchmarkLayerForward/small_relu-16       	21043729	        62.63 ns/op	      48 B/op	       1 allocs/op
+BenchmarkLayerForward/small_sigmoid-16    	 8808507	       137.5 ns/op	      48 B/op	       1 allocs/op
+BenchmarkLayerForward/small_tanh-16       	 8138503	       124.0 ns/op	      48 B/op	       1 allocs/op
+BenchmarkLayerForward/small_linear-16     	17937816	        65.44 ns/op	      48 B/op	       1 allocs/op
+BenchmarkLayerForward/medium_relu-16      	  366124	      3153 ns/op	     416 B/op	       1 allocs/op
+BenchmarkLayerForward/medium_sigmoid-16   	  298525	      3970 ns/op	     416 B/op	       1 allocs/op
+BenchmarkLayerForward/medium_tanh-16      	  281066	      3987 ns/op	     416 B/op	       1 allocs/op
+BenchmarkLayerForward/medium_linear-16    	  426612	      2587 ns/op	     416 B/op	       1 allocs/op
+BenchmarkLayerForward/large_relu-16       	   17163	     74133 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkLayerForward/large_sigmoid-16    	   16441	     73814 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkLayerForward/large_tanh-16       	   15816	     80292 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkLayerForward/large_linear-16     	   18716	     65521 ns/op	    1024 B/op	       1 allocs/op
+BenchmarkLayerForward/very_large_relu-16  	     727	   1630263 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkLayerForward/very_large_sigmoid-16         	     730	   1641260 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkLayerForward/very_large_tanh-16            	     732	   1840961 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkLayerForward/very_large_linear-16          	     618	   1860789 ns/op	    8192 B/op	       1 allocs/op
+BenchmarkLayerForwardMemory-16                      	  342466	      3281 ns/op	     416 B/op	       1 allocs/op
+BenchmarkLayerCreation-16                           	    1551	    839728 ns/op
+BenchmarkLayerForwardInputPatterns/sparse-16        	  393453	      3036 ns/op
+BenchmarkLayerForwardInputPatterns/dense-16         	  362227	      2993 ns/op
+BenchmarkLayerForwardInputPatterns/binary-16        	  415254	      2815 ns/op
+BenchmarkLayerPerformanceComparison/relu-16         	     200	   5941410 ns/op
+BenchmarkLayerPerformanceComparison/sigmoid-16      	     152	   7731931 ns/op
+BenchmarkLayerPerformanceComparison/tanh-16         	     128	   8277180 ns/op
+BenchmarkLayerPerformanceComparison/linear-16       	     222	   4980261 ns/op
+PASS
+ok  	neural-network-project/layer	38.018s

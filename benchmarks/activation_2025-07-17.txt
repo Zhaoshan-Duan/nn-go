@@ -1,0 +1,34 @@
+goos: linux
+goarch: amd64
+pkg: neural-network-project/activation
+cpu: AMD Ryzen 7 7840U w/ Radeon  780M Graphics     
+BenchmarkActivationForward/relu-16     	161509983	         7.439 ns/op
+BenchmarkActivationForward/sigmoid-16  	32873575	        37.94 ns/op
+BenchmarkActivationForward/tanh-16     	25862946	        45.19 ns/op
+BenchmarkActivationForward/linear-16   	175030837	         6.931 ns/op
+BenchmarkActivationForwardMemory/relu-16         	1000000000	         1.139 ns/op	       0 B/op	       0 allocs/op
+BenchmarkActivationForwardMemory/sigmoid-16      	169575085	         6.764 ns/op	       0 B/op	       0 allocs/op
+BenchmarkActivationForwardMemory/tanh-16         	120125701	         9.284 ns/op	       0 B/op	       0 allocs/op
+BenchmarkActivationForwardMemory/linear-16       	1000000000	         1.139 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNewActivation/relu-16                   	825855088	         1.396 ns/op
+BenchmarkNewActivation/sigmoid-16                	745748455	         1.615 ns/op
+BenchmarkNewActivation/tanh-16                   	805792881	         1.508 ns/op
+BenchmarkNewActivation/linear-16                 	798730762	         1.543 ns/op
+BenchmarkNewActivationMemory/relu-16             	794292836	         1.419 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNewActivationMemory/sigmoid-16          	674117692	         1.669 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNewActivationMemory/tanh-16             	783183176	         1.589 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNewActivationMemory/linear-16           	686191200	         1.595 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBatchProcessing/small_batch/relu-16     	 8287940	       148.9 ns/op
+BenchmarkBatchProcessing/small_batch/sigmoid-16  	 1679842	       701.2 ns/op
+BenchmarkBatchProcessing/small_batch/tanh-16     	 2019577	       602.9 ns/op
+BenchmarkBatchProcessing/small_batch/linear-16   	 8937346	       135.7 ns/op
+BenchmarkBatchProcessing/medium_batch/relu-16    	  769117	      1440 ns/op
+BenchmarkBatchProcessing/medium_batch/sigmoid-16 	  164193	      7030 ns/op
+BenchmarkBatchProcessing/medium_batch/tanh-16    	  123351	      9805 ns/op
+BenchmarkBatchProcessing/medium_batch/linear-16  	  891568	      1346 ns/op
+BenchmarkBatchProcessing/large_batch/relu-16     	   83564	     14504 ns/op
+BenchmarkBatchProcessing/large_batch/sigmoid-16  	   16976	     70170 ns/op
+BenchmarkBatchProcessing/large_batch/tanh-16     	   20166	     59780 ns/op
+BenchmarkBatchProcessing/large_batch/linear-16   	   87676	     13520 ns/op
+PASS
+ok  	neural-network-project/activation	43.097s

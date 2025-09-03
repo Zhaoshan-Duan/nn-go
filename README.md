@@ -2,175 +2,93 @@
 
 A multi-layer perceptron neural network in Go implemented from scratch, without external ML libraries.
 
-## Features
+## Current Implementation Status
 
-- [x] **Activation functions**: ReLU, Sigmoid, Tanh, Linear with comprehensive testing
-- [x] **Math utilities**: DotProduct with zero-allocation performance
-- [x] **Layer struct**: with weights, biases, and activation
-- [x] Layer forward pass with thread-safe concurrent execution
-- [x] Network struct (MLP) with comprehensive testing suite
-- [x] Network Forward propagation with intermediate results for backpropagation
-- [x] Data normalization: Z-score normalization with fit/transform pattern
-- [x] Coffee roasting demo: Complete end-to-end ML pipeline validation
+### :white_check_mark: Completed Components
+- **Activation functions**: ReLU, Sigmoid, Tanh, Linear with comprehensive testing
+- **Math utilities**: DotProduct with zero-allocation performance; Z-score normalization with fit/transform pattern
+- **Layer Implementation**: weights/biases storage and initialization; forward propagation with activation; thread-safe for concurrent reads
+- **Network (MLP)**: configurable architecture via `NetworkConfig`; sequantial forward propagation; intermediate results for backpropagation
+- **Example Pipeline**: Coffee roasting classification with pretrained weights and biases
+
+### :construction: Not Yet Implemented
+- [ ] Loss functions
 - [ ] Backward propagation
-- [ ] Training loop
-- [ ] Data loading
+- [ ] Training loop with gradient descent
+- [ ] Model persistence
 - [ ] Evaluation/metrics
 - [ ] CLI/Plotting
 
-### Performance Highlights
-- **DotProduct**: Linear scaling O(n) from 0.89ns (2 elements) to 2284ns (10,000 elements)
-- **Zero allocation**: All core math operations verified to have zero memory allocation
-- **Layer Forward Pass**:
-  - Small layers (10×5): ~55-125 ns/op
-  - Medium layers (100×50): ~2.3-3.6 μs/op
-  - Large layers (784×128): ~64-69 μs/op
-  - Only 1 memory allocation per forward pass
-  - Thread-safe for concurrent inference
+## Performance Characteristics
+### Activation Functions
+As shown [here](benchmarks/activation_2025-07-17.txt), all activation functions achieve **zero memory allocation** per operation
 
-- **Network Forward Pass**:
-  - Only **632B and 3 allocations** per forward pass for medium networks
+| Activation      | Forward Pass | Batch Processing (1000 items) |
+| :---        |    :----   | :--- |
+| Linear     | 1.139ns      | 1.346μs                      |
+| ReLU       | 1.139ns      | 1.440μs                      |
+| Sigmoid    | 6.764ns      | 7.030μs                      |
+| Tanh       | 9.284ns      | 9.805μs                      |
 
-| Network Size | Forward Pass Time | Memory/Op | Allocations |
-|---| :---:|:---:|:---:|
-| Tiny (3→2→1) | ~68ns | 24B | 2 |
-| Small (10→5→1) | ~95ns | 56B | 2 |
-| Medium (100→50→25→10) | ~3.7μs | 704B | 3 |
-| Large (784→128→64→10) | ~72μs | 1616B | 3 |
-| Deep (8 layers) | ~6.4μs | 2,408B | 8 |
+### Vector Operations
+As shown in [here](benchmarks/mathutil_vector_2025-07-18.txt), all vector operations achieve **zero memory allocation** per operation with linear time complexity.
 
-- **Activation Function Performance**
-  - Linear: Baseline (fastest)
-  - ReLU: ~15% slower than linear
-  - Sigmoid: ~54% slower than linear
-  - Tanh: ~62% slower than linear
+| Operation       | Tiny (2 elements) | Small (10) | Medium (100) | Large (1K) | Very Large (10K) |
+|:---            |:---              |:---        |:---          |:---        |:---              |
+| DotProduct     | 1.452ns           | 4.663ns     | 42.22ns       | 416.3ns      | 4.127μs           |
+| Memory         | 0 B/op           | 0 B/op     | 0 B/op       | 0 B/op     | 0 B/op           |
 
-Concurrency Benefits
-- Sequential processing: ~3.7μs/op for medium networks
-- Concurrent (2 goroutines): ~566ns/op (6.5x speedup potential)
+### Data Normalization
+As shown in [here](benchmarks/normalization-07-18.txt), Z-score normalization with linear time complexity $O(n×m)$ ($n$=samples, $m$=features).
 
-- **Mathematical Correctness**
-  - **Property testing**: Mathematical invariants verified (commutativity, distributivity, etc.)
-  - **Numerical stability**: Handles extreme values (infinity, NaN, very large/small numbers)
-  - **Gradient readiness**: `ForwardWithIntermediateResults()` provides foundation for backpropagation
+**Sample Scaling** with 10 features fixed:
 
-## Coffee Roasting Demo - Complete ML Pipeline
-The project includes a complete end-to-end machine learning pipeline demonstrated with a coffee roasting classification problem, validating the implementation against lab examples from Coursera's Machine Learning Specialization.
-
-```
-✅ Data: 200 samples, Temperature 152-295°C, Duration 11.5-15.5min
-✅ Normalization: [-1.7, 1.7] range (matches TensorFlow behavior)
-✅ Network: 2→3→1 architecture with sigmoid activations
-✅ Pretrained weights: Loaded from research paper
-✅ Test Results:
-   • Positive example (200°C, 13.9min): 1.0 probability → Good roast ✓
-   • Negative example (200°C, 17min): 0.0 probability → Bad roast ✓
-✅ Batch Performance: 80% accuracy on training samples
-✅ Performance: 99.4ns per sample (10+ million predictions/second)
-
-BenchmarkCoffeeRoastingPipeline-16         59277             19879 ns/op
-```
-### What this validates
-- Mathematical correctness of forward propagation
-- Proper activation function implementations
-- Accurate weight loading and bias application
-- Correct normalization behavior matching TensorFlow
-- Production-ready inference performance
+| Operation | 100 samples | 1000 samples | 10,000 samples |
+| :--- |:---          |:---        |:---              |
+| Fit |  1.453 μs | 16.09 μs | 228.9 μs |
+| Transform |  4.876 μs | 56.37 μs | 778.6 μs |
 
 
-## Test Coverage Status
-### Completed Test Suites
-- **Activation Functions**: Unit, Property, Benchmark tests :heavy_check_mark:
-- **Math Utilities**: Unit, Property, Benchmark tests with zero allocation :heavy_check_mark:
-- **Layer**: Unit, Component, Integration, Property, Concurrency, Benchmark tests :heavy_check_mark:
-- **Network (MLP)**: Unit, Component, Integration, Property, Concurrency, Benchmark tests :heavy_check_mark:
-- **Data Normalization:** Unit, Property, Benchmark tests with mathematical guarantees :heavy_check_mark:
-- **Coffee Demo Pipeline:** End-to-end integration tests with validation :heavy_check_mark:
+**Feature Scaling** with 1,000 samples fixed:
 
-## Getting Started
+| Operation | 10 features | 100 features | 10,000 features |
+| :--- |:---          |:---        |:---              |
+| Fit |  17.18 μs | 174.1 μs | 129.5 ms |
+| Transform |  62.15 μs | 490.5 μs | 3.098 ms |
 
-### Running Tests
+### Layer Forward Pass
+As shown [here](benchmarks/layer_2025-07-23.txt), layer forward propagation achieves **single memory allocation** per operation with linear time complexity.
+
+| Layer Size      | ReLU    | Sigmoid | Tanh    | Linear  | Memory    |
+|:---            |:---     |:---     |:---     |:---     |:---       |
+| Small (10→5)   | 62.63ns   | 137.5ns   | 124.0ns   | 65.44ns    | 1 allocs/op (48 B/op)  |
+| Medium (100→50)| 3.153μs   | 3.970μs   | 3.987μs   | 2.587μs   | 1 alloc/op (416 B/op) |
+| Large (784→128)| 74.13μs    | 73.81μs    | 80.29μs    | 65.52μs    |  1 allocs/op (1024 B/op) |
+| Very Large (2048→1024)| 1.630ms| 1.641ms   | 1.841ms   | 1.861ms   |   1 allocs/op (8192 B/op) |
+
+## Quick Start
 
 ```sh
-# Run all tests
+# Clone the repository
+git clone https://github.com/Zhaoshan-Duan/neural-network-project
+cd neural-network-project
+
+# Run tests
 go test ./...
 
-# Run tests with verbose output
-go test -v ./...
-
-# Run specific package tests
-go test ./activation
-go test ./mathutil
-go test ./layer
-go test ./network
-
-# Run benchmarks
-go test -bench=. ./..
-
-# Run specific package benchmarks
-go test -bench=. ./activation
-go test -bench=. ./mathutil
-go test -bench=. ./layer
-go test -bench=. ./network
-
-# Run benchmarks with memory allocation stats
-go test -bench=. -benchmem ./activation
-go test -bench=. -benchmem ./mathutil
-go test -bench=. -benchmem ./layer
-go test -bench=. -benchmem ./network
-
-# Run with race detector to verify thread safety
-go test -race ./..
-
-# Run tests with coverage
+# Run with coverage
 go test -cover ./...
 
-# Run coffee demo test
-go test -v -run TestCoffeeRoasting ./examples/coffee_demo
+# Run benchmarks
+go test -bench=. ./...
 
-# Run coffee demo benchmarks
-go test -bench=BenchmarkCoffeeRoasting ./examples/coffee_demo
+# Run the example
+go run main.go
 ```
 
-### Project Structure
-
-```
-neural-network-project/
-├── activation/           # Activation functions (ReLU, Sigmoid, Tanh, etc.)
-│   ├── functions.go
-│   └── functions_test.go # Comprehensive tests with benchmarks
-├── layer/                # Layer struct and logic
-│   ├── layer.go
-│   └── layer_test.go     # Comprehensive tests including concurrency
-├── network/              # Multi-layer perceptron (network struct)
-│   ├── mlp.go
-│   └── mlp_test.go       # Comprehensive tests with intergration pipelines
-├── mathutil/             # Math utilities
-│   ├── vector.go
-│   ├── vector_test.go    # Comprehensive tests with benchmarks
-│   ├── normalization.go  # Z-score normalization implementation
-│   └── normalization_test.go # Property-based normalization tests
-├── coffeedata/           # Coffee roasting dataset
-│   └── data.go           # Synthetic coffee data generation
-├── examples/
-│   └── coffee_demo/
-│       └── coffee_demo_test.go # Complete end-to-end ML pipeline test
-├── progress_tracker.md   # Implementation progress and notes
-├── README.md             # Project overview and instructions
-└── go.mod                # Go module file
-```
-
-- `activation/` – Implements activation functions
-- `mathutil/` - Math utilities with zero-allocation performance guarantees and normalization
-- `layer/` – Contains layer struct, initialization, forward pass
-- `network/` - Complete MLP network wtih configuraiton and pipeline support
-- `coffeedata/` - Coffee roasting dataset generation and utilities
-- `example/coffee_demo/` - End-to-end validation of ML pipeline with pretrained weights and biases
-
-
-## Use Example
-### Baisc Network Usage
-```
+### Usage Example
+#### Basic Inference
+```go
 package main
 
 import (
@@ -206,7 +124,9 @@ func main() {
     fmt.Printf("Network output: %v\n", output)
 }
 ```
-### Inference with Normalization
+
+#### Inference with Normalization
+
 ```go
 package main
 
@@ -269,43 +189,116 @@ func main() {
 }
 ```
 
-## Design Notes
+#### Coffee Roasting Demo
+This project includes a complete example demonstration binary classification for coffee roasting quality based on Coursera's ML Specialization course labs.
 
-This project uses a layer-first approach (rather than a neuron-first approach) for efficiency and simplicity, leveraging Go's strengths with slices and arrays. My current implementation focuses on simplicity and correctness. Bencharmks show good performance for layers up to 1000 neurons. I consider implementing batch-level, and layer-level parallelism after profiling the network. Concurrency will be added based on profiling results, not speculation.
+```sh
+// Temperature and duration determine roast quality
+// Good roast: 175°C < temp < 260°C, 12min < duration < 15min
+// with additional linear constraint
 
-The network uses a simple constructor pattern for clarity and rapid prototyping. I consider reconfigure this into a builder pattern in the future. In the network, layers are stored as pointers with the MLP struct. This allows in-place updates and avoid unnecessary copying of large structs. The data normalization follows the standard ML fit/transform pattern, ensuring proper separation between training and inference phases.
+go test -v -run TestCoffeeRoasting ./demo
+```
 
-## Clean Architecture Principles
+Results with pretrained weights:
+- 200°C, 13.9min → 99.97% probability (Good roast ✓)
+- 200°C, 17.0min → 0.02% probability (Bad roast ✓)
 
-The project follows clean package design principles to ensure maintainability, testability, and extensibility. Each package exposes only the necessary APIs while keeping implementation details private (except Layer's Weights and Biases since I need to manually set them to test before implementing backpropagation). All packages use constructor patterns with error handling to maintain stable interfaces. The dependency flow is unidirectional, with lower-level packages having no knowledge of their dependents.
+### Running Tests
+```sh
+# Run all tests
+go test ./...
 
-### Testing Journey
+# Run tests with verbose output
+go test -v ./...
 
-When working on testing network forward prop, I realized that my initial testing strategy started to struggle with complex behaviors. It was getting confusing and unmanageable.
+# Run specific package tests
+go test ./activation
+go test ./mathutil
+go test ./layer
+go test ./network
 
-Up until `layer/`, I was doing plain unit test using simple table-driven testing. Individual unit tests are written before the implementation, and I only moved onto the next component if I had 100% coverage. But after some research, I learned that my tests have anti patterns. Moreover, the lack of clear testing levels to test the entire components and their subcomponents made me lack the confidence to proceed. There was a scaling issue.
+# Run benchmarks
+go test -bench=. ./..
 
-Hence, in commits [6973ce6](https://github.com/Zhaoshan-Duan/nn-go/commit/6973ce6ecf840f2e7f22857406ac1e312473058c) (Testing Strategy Overhaul), I rewrote the tests for each package using a more structured, multi-level testing strategy with the following testing levels:
+# Run specific package benchmarks
+go test -bench=. ./activation
+go test -bench=. ./mathutil
+go test -bench=. ./layer
+go test -bench=. ./network
 
-1. **Unit Level** - Individual functions with known input/output pairs
-2. **Component Level** - Whole components with realistic scenarios
-3. **Integration Level** - Multiple components working together
-4. **Property Level** - Mathematical invariants and properties (monotonicity, range, symmetry)
-5. **Performance Level** - Benchmarks for speed and memory allocation
-6. **Concurrency Level** - Thread-safety verification (added for layer package)
+# Run benchmarks with memory allocation stats
+go test -bench=. -benchmem ./activation
+go test -bench=. -benchmem ./mathutil
+go test -bench=. -benchmem ./layer
+go test -bench=. -benchmem ./network
 
-Tests are re-organized by sub-tests in parallel execution. Benchmarking was also added just to ensure I had zero memory allocation for activation functions, and I knew I wanted to incorporate concurrency for matrix operations later.
+# Run with race detector to verify thread safety
+go test -race ./..
 
-When adapting this apporach for `network/`, one single test script has become barely managable as it had 2880 lines (It was barely manageable for `layer/` already, which had 1767 lines). So at commit placeholder, I broken down the test script into individual sctips for each testing level.
+# Run tests with coverage
+go test -cover ./...
+
+# Run coffee demo test
+go test -v -run TestCoffeeRoasting ./examples/coffee_demo
+
+# Run coffee demo benchmarks
+go test -bench=BenchmarkCoffeeRoasting ./examples/coffee_demo
+```
+
+## Project Structure
+```sh
+neural-network-project/
+├── activation/           # Activation functions
+│   ├── functions.go
+│   └── functions_test.go # tests with benchmarks
+├── benchmarks/           # Performance benchmark for each componenet
+│   ├── activation_2025-07-17.txt
+│   ├── mathutil_vector_2025-07-18.txt
+│   ├── normalization-07-20.txt
+│   └── layer_2025-07-23.txt
+├── mathutil/
+│   ├── vector.go
+│   ├── vector_test.go    # tests with benchmarks
+│   ├── normalization.go  # Z-score normalization implementation
+│   └── normalization_test.go # Property-based normalization tests
+├── layer/
+│   ├── layer.go
+│   └── layer_test.go     # tests including concurrency
+├── network/
+│   ├── mlp.go
+│   └── mlp_test.go       # tests with intergration pipelines
+├── coffeedata/           # Coffee roasting dataset
+│   └── data.go           # Synthetic coffee data generation
+├── examples/
+│   └── coffee_demo/
+|       ├── main.go               # Example usage
+│       └── coffee_demo_test.go # Complete end-to-end ML pipeline test
+├── progress_tracker.md   # Implementation progress and notes
+├── README.md             # Project overview and instructions
+└── go.mod                # Go module file
+```
+
+## Testing Philosophy
+This project follows a structured, multi-level testing apporach:
+1. **Unit Tests** - Individual functions with known input/output pairs
+2. **Component Tests** - Whole components with realistic scenarios
+3. **Integration Tests** - Multiple components working together
+4. **Property Tests** - Mathematical invariants (monotonicity, bounds, symmetry)
+5. **Robustness Tests** - Edge cases, error recovery, extreme inputs, thread-safety
+6. **Benchmarks** - Performance and memory allocation verification
+
+### Test Organization
+Each package follows a consistent test structure:
+```sh
+// TEST HELPERS
+// UNIT TESTS (by function/method)
+// COMPONENT TESTS (if applicable)
+// INTEGRATION TESTS (if applicable)
+// PROPERTY TESTS
+// ROBUSTNESS TESTS
+// BENCHMARKS
+```
 
 ## Roadmap
-
 See `progress_tracker.md` for detailed progress and technical notes.
-
-## Implementation Plan
-
-- **Phase 1:** Core implementation (activation functions, layer struct, forward propagation)
-- **Phase 2:** Network-level forward propagation and testing
-- **Phase 2.5:** Data normalization and example ML pipeline
-- **Phase 3:** Backward propagation and training
-- **Phase 4:** Extensions and optimizations (including targeted concurrency)

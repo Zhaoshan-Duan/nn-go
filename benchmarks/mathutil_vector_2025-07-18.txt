@@ -1,0 +1,13 @@
+goos: linux
+goarch: amd64
+pkg: neural-network-project/mathutil
+cpu: AMD Ryzen 7 7840U w/ Radeon  780M Graphics     
+BenchmarkDotProduct/tiny-16            	829349265	         1.452 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDotProduct/small-16           	252746019	         4.663 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDotProduct/medium-16          	28090492	        42.22 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDotProduct/large-16           	 2844506	       416.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDotProduct/very_large-16      	  283155	      4127 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDotProductMemory-16           	744719394	         1.571 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDotProductNeuralNetwork/neural_network_specific-16         	 5679374	       208.6 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	neural-network-project/mathutil	11.615s

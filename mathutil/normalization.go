@@ -29,6 +29,7 @@ func (n *Normalizer) Fit(data [][]float64) error {
 	n.mean = make([]float64, numFeatures)
 	n.stddev = make([]float64, numFeatures)
 
+	// Calculate mean for each feature
 	for i := range n.mean {
 		sum := 0.0
 		for j := range numSamples {
@@ -37,6 +38,7 @@ func (n *Normalizer) Fit(data [][]float64) error {
 		n.mean[i] = sum / float64(numSamples)
 	}
 
+	// Calculate standard deviation for each feature
 	for i := range n.stddev {
 		sumSquares := 0.0
 		for j := range numSamples {
@@ -45,7 +47,8 @@ func (n *Normalizer) Fit(data [][]float64) error {
 		}
 		n.stddev[i] = math.Sqrt(sumSquares / float64(numSamples))
 
-		// Avoid division by zero
+		// Handle zero variance case (but not NaN/Inf cases)
+		// Only set to 1.0 if it's exactly zero (constant finite values)
 		if n.stddev[i] == 0 {
 			n.stddev[i] = 1.0
 		}
